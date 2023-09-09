@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".MainHome">
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/white"
+        android:layout_above="@id/bottomBarLayout"
+        >
+
+        <FrameLayout
+            android:id="@+id/fl_wrapper"
+            android:background="@color/white"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginLeft="3dp"
+            android:layout_marginRight="3dp"
+            android:id="@+id/fab_linearlayout"
+            app:layout_anchorGravity="bottom"
+            android:layout_margin="5dp"
+            android:layout_gravity="bottom|center"
+            android:layout_marginBottom="10dp">
+
+
+
+
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/btn_identify"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:fabSize="normal"
+                android:scaleType="center"
+                android:scaleX="1.3"
+                android:layout_margin="5dp"
+                android:scaleY="1.3"
+                android:layout_marginBottom="15dp"
+                android:visibility="invisible"
+                android:src="@drawable/ic_identify"
+                app:layout_anchor="@id/fab" />
+
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/btn_register"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:scaleType="center"
+                android:layout_margin="5dp"
+                android:scaleX="1.3"
+                android:visibility="invisible"
+                android:layout_marginBottom="20dp"
+                android:scaleY="1.3"
+                android:src="@drawable/ic_camera"
+                app:layout_anchor="@id/btn_identify"
+                app:layout_constraintEnd_toEndOf="parent" />
+        </LinearLayout>
+
+    </FrameLayout>
+
+    <androidx.coordinatorlayout.widget.CoordinatorLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:background="@color/white"
+        android:id="@+id/bottomBarLayout">
+        <com.google.android.material.bottomappbar.BottomAppBar
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:id="@+id/bottomAppBar"
+            android:background="@color/white"
+            android:layout_gravity="bottom"
+            app:fabCradleRoundedCornerRadius="20dp"
+            app:fabCradleMargin="10dp">
+            <com.google.android.material.bottomnavigation.BottomNavigationView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:id="@+id/bottomNavigationView"
+                android:layout_marginEnd="16dp"
+                android:background="@android:color/transparent"
+                app:menu="@menu/bottom_nav_menu"/>
+        </com.google.android.material.bottomappbar.BottomAppBar>
+
+
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/fab"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+
+            android:layout_marginBottom="30dp"
+            android:scaleType="center"
+            android:scaleX="1.1"
+            android:scaleY="1.1"
+            android:layout_gravity="center"
+            android:src="@drawable/ic_add"
+            app:layout_anchor="@id/bottomAppBar" />
+
+
+    </androidx.coordinatorlayout.widget.CoordinatorLayout>
+
+
+</RelativeLayout>

@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".IdentifyFingerprint">
+
+    <Button
+        android:id="@+id/identify_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerInParent="true"
+        android:text="Identify" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:text="Null"
+        android:textSize="20dp"
+        android:layout_above="@id/progressbar_layout"
+        android:layout_marginBottom="30dp"
+        android:visibility="invisible"
+        android:id="@+id/identify_score"/>
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:text="0.0"
+        android:textSize="20dp"
+        android:layout_marginBottom="10dp"
+        android:visibility="invisible"
+        android:layout_above="@id/identify_score"
+        android:id="@+id/identify_score_value"/>
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/progressbar_layout"
+        android:layout_marginBottom="15dp"
+        android:paddingLeft="10dp"
+        android:paddingRight="10dp"
+        android:layout_alignParentBottom="true">
+
+        <ProgressBar
+            android:id="@+id/progress_bar"
+            style="@style/Widget.AppCompat.ProgressBar.Horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:layout_marginStart="2dp"
+            android:layout_marginTop="2dp"
+            android:layout_marginEnd="2dp"
+            android:layout_marginBottom="2dp"
+            android:layout_toLeftOf="@id/progress_percent"
+            android:background="@drawable/rounded_corner_progress_bar"
+            android:paddingLeft="2dp"
+            android:paddingTop="2dp"
+            android:paddingRight="2dp"
+            android:paddingBottom="2dp"
+            android:progressBackgroundTint="@color/white"
+            android:progressDrawable="@drawable/rounded_corner_progress_bar"
+            android:text="Price"
+            android:textColor="@color/white" />
+        <TextView
+            android:id="@+id/progress_percent"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="15dp"
+            android:visibility="gone"
+            android:layout_marginLeft="5dp"
+            android:layout_alignParentRight="true"
+            android:layout_centerVertical="true"
+            android:text="Percent"
+            android:textColor="@color/black" />
+    </RelativeLayout>
+
+
+</RelativeLayout>

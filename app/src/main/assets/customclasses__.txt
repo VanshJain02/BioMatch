@@ -1,0 +1,4 @@
+index
+middle
+pinky
+ring

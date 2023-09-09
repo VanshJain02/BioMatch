@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".fragment.HomeFragment">
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:layout_marginBottom="20dp"
+            android:text="YOUR ATTENDANCE"
+            android:textStyle="bold"
+            android:textColor="@color/black"
+            android:textSize="20dp"
+            android:id="@+id/your_attendance_text"
+            android:layout_centerHorizontal="true"
+            android:layout_alignParentTop="true"/>
+
+
+        <com.example.biomatch.zcustomcalendar.CustomCalendar
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="10dp"
+            android:layout_below="@id/your_attendance_text"
+            android:id="@+id/custom_calender"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerHorizontal="true"
+            android:text="Null"
+            android:textSize="20dp"
+            android:layout_above="@id/progress_bar"
+            android:layout_marginBottom="10dp"
+            android:visibility="invisible"
+            android:id="@+id/identify_score"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerHorizontal="true"
+            android:text="0.0"
+            android:textSize="20dp"
+            android:layout_marginBottom="10dp"
+            android:visibility="invisible"
+            android:layout_above="@id/identify_score"
+            android:id="@+id/identify_score_value"/>
+
+        <ProgressBar
+            android:id="@+id/progress_bar"
+            style="@style/Widget.AppCompat.ProgressBar.Horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:layout_marginStart="20dp"
+            android:layout_marginTop="10dp"
+            android:layout_marginEnd="20dp"
+            android:layout_marginBottom="20dp"
+            android:background="@drawable/rounded_corner_progress_bar"
+            android:paddingLeft="2dp"
+            android:paddingTop="2dp"
+            android:paddingRight="2dp"
+            android:paddingBottom="2dp"
+            android:layout_alignParentBottom="true"
+            android:visibility="invisible"
+            android:progressBackgroundTint="@color/white"
+            android:progressDrawable="@drawable/rounded_corner_progress_bar"
+            android:text="Price"
+            android:textColor="@color/white" />
+
+    </RelativeLayout>
+
+</FrameLayout>

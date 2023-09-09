@@ -1,0 +1,332 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:id="@+id/miRegister"
+
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    tools:context=".fragment.RegisterFragment">
+
+    <LinearLayout
+        android:id="@+id/register_frame"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#0099FF"
+        android:orientation="vertical">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="100dp"
+            android:layout_gravity="center"
+            android:background="#0099FF"
+            android:fontFamily="@font/bungee"
+            android:gravity="center"
+            android:text="REGISTRATION"
+            android:textColor="@color/black"
+            android:textSize="30dp" />
+
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="200dp"
+            android:layout_height="60dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginBottom="-25dp"
+            android:padding="5dp"
+            app:cardBackgroundColor="#0087E1"
+            app:cardCornerRadius="20dp"
+            app:cardElevation="10dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:fontFamily="@font/bungee"
+                android:gravity="center"
+                android:text="REGISTER NOW"
+                android:textColor="@color/black" />
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.card.MaterialCardView
+            style="@style/custom_card_view_style"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+            <ScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:scrollbars="vertical">
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_marginTop="10dp"
+                android:orientation="vertical">
+
+                <androidx.appcompat.widget.AppCompatEditText
+                    android:id="@+id/registrationname_edittxt"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:layout_marginTop="20dp"
+                    android:hint="Enter User Name" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginLeft="5dp"
+                    android:layout_marginTop="40dp"
+                    android:layout_marginRight="5dp"
+                    android:orientation="vertical">
+
+                    <RelativeLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <ProgressBar
+                            android:id="@+id/progress_bar_sample1"
+                            style="@style/Widget.AppCompat.ProgressBar.Horizontal"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_alignParentLeft="true"
+                            android:layout_centerVertical="true"
+                            android:layout_marginStart="10dp"
+                            android:layout_marginTop="2dp"
+                            android:layout_marginEnd="10dp"
+                            android:layout_marginBottom="2dp"
+                            android:max="1000"
+                            android:layout_toLeftOf="@id/add_sample1_btn"
+                            android:background="@drawable/rounded_corner_progress_bar"
+                            android:paddingLeft="2dp"
+                            android:paddingTop="2dp"
+                            android:paddingRight="2dp"
+                            android:paddingBottom="2dp"
+                            android:progressBackgroundTint="@color/white"
+                            android:progressDrawable="@drawable/rounded_corner_progress_bar"
+                            android:textColor="@color/white" />
+
+                        <androidx.appcompat.widget.AppCompatButton
+                            android:id="@+id/add_sample1_btn"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_alignParentRight="true"
+                            android:text="Sample 1"
+                            android:textSize="12dp"
+                            android:padding="5dp"
+                            android:background="@drawable/custom_button"
+                            android:textColor="@color/black" />
+                    </RelativeLayout>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginLeft="5dp"
+                    android:layout_marginTop="10dp"
+                    android:layout_marginRight="5dp"
+                    android:orientation="vertical">
+
+                    <RelativeLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <ProgressBar
+                            android:id="@+id/progress_bar_sample2"
+                            style="@style/Widget.AppCompat.ProgressBar.Horizontal"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_alignParentLeft="true"
+                            android:layout_centerVertical="true"
+                            android:layout_marginStart="10dp"
+                            android:layout_marginTop="2dp"
+                            android:layout_marginEnd="10dp"
+                            android:max="1000"
+                            android:layout_marginBottom="2dp"
+                            android:layout_toLeftOf="@id/add_sample2_btn"
+                            android:background="@drawable/rounded_corner_progress_bar"
+                            android:paddingLeft="2dp"
+                            android:paddingTop="2dp"
+                            android:paddingRight="2dp"
+                            android:paddingBottom="2dp"
+                            android:progressBackgroundTint="@color/white"
+                            android:progressDrawable="@drawable/rounded_corner_progress_bar"
+                            android:textColor="@color/white" />
+
+                        <androidx.appcompat.widget.AppCompatButton
+                            android:id="@+id/add_sample2_btn"
+                            android:padding="5dp"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_alignParentRight="true"
+                            android:text="Sample 2"
+                            android:textSize="12dp"
+                            android:background="@drawable/custom_button"
+
+                            android:textColor="@color/black" />
+                    </RelativeLayout>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginLeft="5dp"
+                    android:layout_marginTop="10dp"
+                    android:layout_marginRight="5dp"
+                    android:orientation="vertical">
+
+                    <RelativeLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <ProgressBar
+                            android:id="@+id/progress_bar_sample3"
+                            style="@style/Widget.AppCompat.ProgressBar.Horizontal"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_alignParentLeft="true"
+                            android:layout_centerVertical="true"
+                            android:layout_marginStart="10dp"
+                            android:layout_marginTop="2dp"
+                            android:max="1000"
+                            android:layout_marginEnd="10dp"
+                            android:layout_marginBottom="2dp"
+                            android:layout_toLeftOf="@id/add_sample3_btn"
+                            android:background="@drawable/rounded_corner_progress_bar"
+                            android:paddingLeft="2dp"
+                            android:paddingTop="2dp"
+                            android:paddingRight="2dp"
+                            android:paddingBottom="2dp"
+                            android:progressBackgroundTint="@color/white"
+                            android:progressDrawable="@drawable/rounded_corner_progress_bar"
+                            android:textColor="@color/white" />
+
+                        <androidx.appcompat.widget.AppCompatButton
+                            android:id="@+id/add_sample3_btn"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_alignParentRight="true"
+                            android:text="Sample 3"
+                            android:textSize="12dp"
+                            android:background="@drawable/custom_button"
+                            android:padding="5dp"
+                            android:textColor="@color/black" />
+                    </RelativeLayout>
+                </LinearLayout>
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="20dp"
+                    android:layout_gravity="center_horizontal"
+                    android:visibility="invisible"
+                    android:orientation="vertical"
+                    android:id="@+id/captured_finger_reg">
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:orientation="horizontal"
+                        android:gravity="center"
+                        android:layout_height="wrap_content">
+                        <ImageView
+                            android:layout_width="170dp"
+                            android:layout_height="170dp"
+                            android:id="@+id/cap_finger1"/>
+                        <ImageView
+                            android:layout_width="170dp"
+                            android:layout_height="170dp"
+                            android:id="@+id/cap_finger2"/>
+                    </LinearLayout>
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:orientation="horizontal"
+                        android:gravity="center"
+                        android:layout_height="wrap_content">
+                        <ImageView
+                            android:layout_width="170dp"
+                            android:layout_height="170dp"
+                            android:id="@+id/cap_finger3"/>
+                        <ImageView
+                            android:layout_width="170dp"
+                            android:layout_height="170dp"
+                            android:id="@+id/cap_finger4"/>
+                    </LinearLayout>
+
+                </LinearLayout>
+
+            </LinearLayout>
+                <androidx.appcompat.widget.AppCompatButton
+                    android:layout_width="150dp"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center_horizontal"
+                    android:gravity="center"
+                    android:layout_alignParentBottom="true"
+                    android:layout_centerHorizontal="true"
+                    android:layout_marginBottom="15dp"
+                    android:background="@drawable/custom_button"
+                    android:id="@+id/register_done_btn"
+                    android:visibility="invisible"
+                    android:text="DONE" />
+            </RelativeLayout>
+            </ScrollView>
+        </com.google.android.material.card.MaterialCardView>
+
+
+
+    </LinearLayout>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone"
+        android:id="@+id/register_captureframe">
+        <androidx.camera.view.PreviewView
+            android:id="@+id/previewView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"/>
+
+        <com.example.biomatch.yolo.customview.OverlayView
+            android:id="@+id/tracking_overlay"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:orientation="vertical"
+            android:visibility="gone"
+            android:id="@+id/display_Output_layout">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:orientation="horizontal"
+                android:layout_height="wrap_content">
+                <ImageView
+                    android:layout_width="170dp"
+                    android:layout_height="170dp"
+                    android:id="@+id/finger1"/>
+                <ImageView
+                    android:layout_width="170dp"
+                    android:layout_height="170dp"
+                    android:id="@+id/finger2"/>
+            </LinearLayout>
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:orientation="horizontal"
+                android:layout_height="wrap_content">
+                <ImageView
+                    android:layout_width="170dp"
+                    android:layout_height="170dp"
+                    android:id="@+id/finger3"/>
+                <ImageView
+                    android:layout_width="170dp"
+                    android:layout_height="170dp"
+                    android:id="@+id/finger4"/>
+            </LinearLayout>
+
+        </LinearLayout>
+    </FrameLayout>
+
+</FrameLayout>

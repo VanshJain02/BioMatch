@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "642377524363",
+    "project_id": "biomatch-96b5e",
+    "storage_bucket": "biomatch-96b5e.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:642377524363:android:0999f6468176633866e08e",
+        "android_client_info": {
+          "package_name": "com.example.biomatch"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "642377524363-35964p4bskgas82r7o7l62788ros678h.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC4kgTpNY1ynyfWnDWKcThSSNCR3655a4A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "642377524363-35964p4bskgas82r7o7l62788ros678h.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
