@@ -77,6 +77,7 @@ class MainHome : AppCompatActivity() {
         }
 
         var settingFragment = SettingFragment()
+        var register = RegisterFragment()
 
         if (savedInstanceState != null) {
             Log.d("SAVE","SAVESTATEUSED")
@@ -84,7 +85,7 @@ class MainHome : AppCompatActivity() {
                 ?: savedStateSparseArray
             currentSelectItemId = savedInstanceState.getInt(SAVED_STATE_CURRENT_TAB_KEY)
         } else {
-            makeCurrentFragment(homeFragment,R.id.miHome)
+            makeCurrentFragment(register,R.id.miRegister)
         }
 
         if(allPermissionGranted()){
@@ -119,7 +120,6 @@ class MainHome : AppCompatActivity() {
 
         register_btn.setOnClickListener{
             currentSelectItemId=R.id.miRegister
-            var register = RegisterFragment()
             makeCurrentFragment(register,R.id.miRegister)
 //            homeFragment.identify_finger()
             onCameraFabClicked()

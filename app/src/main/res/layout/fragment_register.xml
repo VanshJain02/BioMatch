@@ -114,7 +114,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_alignParentRight="true"
-                            android:text="Sample 1"
+                            android:text="LEFT"
                             android:textSize="12dp"
                             android:padding="5dp"
                             android:background="@drawable/custom_button"
@@ -163,7 +163,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_alignParentRight="true"
-                            android:text="Sample 2"
+                            android:text="RIGHT"
                             android:textSize="12dp"
                             android:background="@drawable/custom_button"
 
@@ -287,11 +287,49 @@
             android:id="@+id/previewView"
             android:layout_width="match_parent"
             android:layout_height="match_parent"/>
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentTop="true"
+                    android:layout_alignParentRight="true"
+                    android:layout_marginTop="10dp"
+                    android:layout_marginRight="20dp"
+                    android:checked="true"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:textSize="5dp"
+                    android:id="@+id/capturemode_switch"
+                    android:textOff="Manual"
+                    android:textOn="Auto"
+                    app:switchTextAppearance="@style/TextAppearance.AppCompat.Subhead"
+                    app:showText="true"
+                    android:thumb="@drawable/track"
+                    app:track="@drawable/thumb"
+                    android:scaleX="0.8"
+                    android:scaleY="0.8"
+                    />
+
+
+            <Button
+                android:layout_centerHorizontal="true"
+                android:layout_alignParentBottom="true"
+                android:layout_marginBottom="20dp"
+                android:layout_width="wrap_content"
+                android:visibility="gone"
+                android:layout_height="wrap_content"
+                android:id="@+id/capture_toggle"
+                android:text="capture" />
+        </RelativeLayout>
 
         <com.example.biomatch.yolo.customview.OverlayView
             android:id="@+id/tracking_overlay"
             android:layout_width="match_parent"
-            android:layout_height="match_parent" />
+            android:layout_height="match_parent"
+            />
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

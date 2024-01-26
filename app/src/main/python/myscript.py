@@ -1,4 +1,4 @@
-from sklearn.cluster import KMeans
+from sklearn.cluster import KMeans, MiniBatchKMeans
 import numpy as np
 import cv2
 from PIL import Image
@@ -8,9 +8,12 @@ import scipy
 from scipy import signal
 from scipy import ndimage
 import math
+from skimage.util import view_as_blocks
+
 import skimage.morphology
 from skimage.morphology import convex_hull_image, erosion
 from skimage.morphology import square
+
 
 import fingerprint_enhancer
 from scipy.fft import fft, fftfreq
@@ -86,6 +89,28 @@ def main(data,mod):
 		out1 = cv2.resize(out1, (500,1000))
 		final_image = extract_minutiae_features(out1,10,False,True, True )
 
+	# 	NEW INTERNS PREPROCESSING
+	elif(mod==10):
+		image_enhancer = FingerprintImageEnhancerNew()
+
+		x, mask = return_masked_image_new(imge, 0.1)
+
+		mask = mask.astype(np.uint8)
+		th_image = apply_adaptive_mean_thresholding_new(mask, "GAUSSIAN", 15, 1)
+		th_img = th_image * 255
+
+		static_kernel = np.array([[0, 0, 0], [0, 9, 0], [0, 0, 0]])
+		th_img = cv2.filter2D(th_img, -1, static_kernel)
+		th_image = (th_img > 127).astype(np.uint8) * 255
+		print("Starting Gabor Filter")
+		try:
+			enhanced_image = image_enhancer.enhance(255 - th_img)
+		except Exception as e:
+			print("Enhancement error:", e)
+			enhanced_image = imge
+		print("Gabor Filter Ended")
+		final_image= enhanced_image
+
 
 
 	else:
@@ -144,7 +169,262 @@ def getpixel(data):
 
 	return ans
 
+class FingerprintImageEnhancerNew(object):
+	def __init__(self):
+		self.ridge_segment_blksze = 32
+		self.ridge_segment_thresh = 0.1
+		self.gradient_sigma = 1
+		self.block_sigma = 7
+		self.orient_smooth_sigma = 7
+		self.ridge_freq_blksze = 38
+		self.ridge_freq_windsze = 5
+		self.min_wave_length = 5
+		self.max_wave_length = 15
+		self.kx = 1.0
+		self.ky = 1.0
+		self.angleInc = 3
+		self.ridge_filter_thresh = -1
 
+
+		self._mask = []
+		self._normim = []
+		self._orientim = []
+		self._mean_freq = []
+		self._median_freq = []
+		self._freq = []
+		self._freqim = []
+		self._binim = []
+
+	def __normalise(self, img, mean, std):
+		if(np.std(img) == 0):
+			raise ValueError("Image standard deviation is 0. Please review image again")
+		normed = (img - np.mean(img)) / (np.std(img))
+		return (normed)
+
+	# using view_as_blocks and np.pad and np.kron instead of nested loops
+	def __ridge_segment(self, img):
+		rows, cols = img.shape
+		im = self.__normalise(img, 0, 1)  # normalising the image
+
+		# Calculate the number of blocks needed
+		new_rows = int(self.ridge_segment_blksze * np.ceil(float(rows) / self.ridge_segment_blksze))
+		new_cols = int(self.ridge_segment_blksze * np.ceil(float(cols) / self.ridge_segment_blksze))
+
+		# Efficient padding
+		padded_img = np.pad(im, ((0, new_rows - rows), (0, new_cols - cols)), 'constant')
+
+		# Efficient block processing
+		block_shape = (self.ridge_segment_blksze, self.ridge_segment_blksze)
+		blocks = view_as_blocks(padded_img, block_shape)
+
+		# Vectorized standard deviation calculation
+		stddev_blocks = np.std(blocks, axis=(2, 3))
+		stddevim = np.kron(stddev_blocks, np.ones(block_shape))
+
+		# Trimming to the original size and creating a mask
+		stddevim = stddevim[:rows, :cols]
+		self._mask = stddevim > self.ridge_segment_thresh
+
+		# Normalizing using the mask
+		mean_val = np.mean(im[self._mask])
+		std_val = np.std(im[self._mask])
+		self._normim = (im - mean_val) / std_val
+
+	# using ** instead of np.power and reduced redundancies
+	def __ridge_orient(self):
+		rows, cols = self._normim.shape
+
+		sze = np.fix(6 * self.gradient_sigma)
+		sze = sze + 1 if np.remainder(sze, 2) == 0 else sze
+
+		gauss = cv2.getGaussianKernel(int(sze), self.gradient_sigma)
+		f = np.dot(gauss, gauss.T)
+
+		fy, fx = np.gradient(f)  # Gradient of Gaussian
+
+		Gx = signal.convolve2d(self._normim, fx, mode='same')
+		Gy = signal.convolve2d(self._normim, fy, mode='same')
+
+		Gxx = Gx**2
+		Gyy = Gy**2
+		Gxy = 2 * Gx * Gy
+
+		sze = np.fix(6 * self.block_sigma)
+		gauss = cv2.getGaussianKernel(int(sze), self.block_sigma)
+		f = np.dot(gauss, gauss.T)
+
+		Gxx = ndimage.convolve(Gxx, f)
+		Gyy = ndimage.convolve(Gyy, f)
+		Gxy = ndimage.convolve(Gxy, f)
+
+		denom = np.sqrt(Gxy**2 + (Gxx - Gyy)**2) + np.finfo(float).eps
+		sin2theta = Gxy / denom
+		cos2theta = (Gxx - Gyy) / denom
+
+		# Smooth the orientations if needed
+		if self.orient_smooth_sigma:
+			sze = np.fix(6 * self.orient_smooth_sigma)
+			sze = sze + 1 if np.remainder(sze, 2) == 0 else sze
+			gauss = cv2.getGaussianKernel(int(sze), self.orient_smooth_sigma)
+			f = np.dot(gauss, gauss.T)
+			cos2theta = ndimage.convolve(cos2theta, f)
+			sin2theta = ndimage.convolve(sin2theta, f)
+
+		self._orientim = np.pi / 2 + np.arctan2(sin2theta, cos2theta) / 2
+
+	# Efficient computation of mean and median frequency
+	def __ridge_freq(self):
+		rows, cols = self._normim.shape
+		freq = np.zeros((rows, cols))
+
+		# Process each block of the image
+		for r in range(0, rows - self.ridge_freq_blksze, self.ridge_freq_blksze):
+			for c in range(0, cols - self.ridge_freq_blksze, self.ridge_freq_blksze):
+				blkim = self._normim[r:r + self.ridge_freq_blksze, c:c + self.ridge_freq_blksze]
+				blkor = self._orientim[r:r + self.ridge_freq_blksze, c:c + self.ridge_freq_blksze]
+
+				freq[r:r + self.ridge_freq_blksze, c:c + self.ridge_freq_blksze] = self.__frequest(blkim, blkor)
+
+		freq = freq * self._mask
+		non_zero_freq = freq[freq > 0]
+		self._mean_freq = np.mean(non_zero_freq)
+		self._median_freq = np.median(non_zero_freq)
+
+		self._freq = self._mean_freq * self._mask
+
+	# used np.where and removed unnecessary shape calculation
+	def __frequest(self, blkim, blkor):
+		rows, cols = blkim.shape
+		cosorient = np.mean(np.cos(2 * blkor))
+		sinorient = np.mean(np.sin(2 * blkor))
+		orient = math.atan2(sinorient, cosorient) / 2
+
+		rotim = scipy.ndimage.rotate(blkim, orient / np.pi * 180 + 90, axes=(1, 0), reshape=False, order=3, mode='nearest')
+
+		cropsze = int(np.fix(rows / np.sqrt(2)))
+		offset = int(np.fix((rows - cropsze) / 2))
+		rotim = rotim[offset:offset + cropsze, offset:offset + cropsze]
+
+		proj = np.sum(rotim, axis=0)
+		dilation = scipy.ndimage.grey_dilation(proj, size=self.ridge_freq_windsze, structure=np.ones(self.ridge_freq_windsze))
+		temp = np.abs(dilation - proj)
+		peak_thresh = 2
+		maxpts = (temp < peak_thresh) & (proj > np.mean(proj))
+		maxind = np.where(maxpts)[0]
+
+		if maxind.size < 2:
+			return np.zeros(blkim.shape)
+		else:
+			NoOfPeaks = maxind.size
+			waveLength = (maxind[-1] - maxind[0]) / (NoOfPeaks - 1)
+			if self.min_wave_length <= waveLength <= self.max_wave_length:
+				return 1 / np.double(waveLength) * np.ones(blkim.shape)
+			else:
+				return np.zeros(blkim.shape)
+
+	# using vectorized operations and pre-compute orientations of gabor filter
+	# adjusted the loop to only iterate over the valid part
+	def __ridge_filter(self):
+		im = np.double(self._normim)
+		rows, cols = im.shape
+		newim = np.zeros((rows, cols))
+
+		freq_1d = self._freq[self._freq > 0]
+		non_zero_elems_in_freq = np.round(freq_1d * 100) / 100
+		unfreq = np.unique(non_zero_elems_in_freq)
+
+		sigmax = 1 / unfreq[0] * self.kx
+		sigmay = 1 / unfreq[0] * self.ky
+		sze = int(np.round(3 * max(sigmax, sigmay)))
+		x, y = np.meshgrid(np.linspace(-sze, sze, (2 * sze + 1)), np.linspace(-sze, sze, (2 * sze + 1)))
+		reffilter = np.exp(-((x ** 2 / sigmax ** 2) + (y ** 2 / sigmay ** 2))) * np.cos(2 * np.pi * unfreq[0] * x)
+
+		angleRange = int(180 / self.angleInc)
+		gabor_filters = [scipy.ndimage.rotate(reffilter, -(o * self.angleInc + 90), reshape=False)
+						 for o in range(angleRange)]
+
+		# efficient filtering
+		maxorientindex = round(180 / self.angleInc)
+		orientindex = np.round(self._orientim / np.pi * 180 / self.angleInc) % maxorientindex
+
+		valid_mask = (self._freq > 0) & (sze < rows - np.arange(rows)[:, None]) & (sze < np.arange(rows)[:, None]) & \
+					 (sze < cols - np.arange(cols)) & (sze < np.arange(cols))
+
+		for r in range(sze, rows - sze):
+			for c in range(sze, cols - sze):
+				if valid_mask[r, c]:
+					img_block = im[r - sze:r + sze + 1, c - sze:c + sze + 1]
+					filter_index = int(orientindex[r, c]) - 1
+					newim[r, c] = np.sum(img_block * gabor_filters[filter_index])
+
+		self._binim = newim < self.ridge_filter_thresh
+
+	def save_enhanced_image(self, path):
+		# saves the enhanced image at the specified path
+		cv2.imwrite(path, (255 * self._binim))
+
+	def enhance(self, img, resize=True):
+		# main function to enhance the image.
+		# calls all other subroutines
+
+		if(resize):
+			rows, cols = np.shape(img)
+			aspect_ratio = np.double(rows) / np.double(cols)
+
+			new_rows = 450                 # randomly selected number
+			new_cols = new_rows / aspect_ratio
+
+			img = cv2.resize(img, (int(new_cols), int(new_rows)))
+
+		self.__ridge_segment(img)   # normalise the image and find a ROI
+		self.__ridge_orient()       # compute orientation image
+		self.__ridge_freq()         # compute major frequency of ridges
+		self.__ridge_filter()       # filter the image using oriented gabor filter
+		return(self._binim)
+
+def apply_adaptive_mean_thresholding_new(image,method="GAUSSIAN",block_size=7,subtraction_const=1):
+	"""NOTE: block size must be an odd number"""
+
+	image_gray = cv2.cvtColor((image*255).astype(np.uint8), cv2.COLOR_BGR2GRAY)
+	if method == "GAUSSIAN":
+		thresholded_image = cv2.adaptiveThreshold(image_gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+												  cv2.THRESH_BINARY, block_size, subtraction_const)
+
+	elif method == "MEAN":
+		thresholded_image = cv2.adaptiveThreshold(image_gray, 255, cv2.ADAPTIVE_THRESH_MEAN_C,
+												  cv2.THRESH_BINARY, block_size, subtraction_const)
+
+	else: print("Wrong method name used!"); return;
+
+	return thresholded_image.astype(np.float64)/255
+
+
+def return_masked_image_new(image, spatial_weight):
+	# print(image)
+	dim1, dim2 = image.shape[:2]
+	image_convert = cv2.cvtColor(image, cv2.COLOR_BGR2YCR_CB)
+
+	xb, xa = np.meshgrid(np.linspace(1, dim2, dim2), np.linspace(1, dim1, dim1))
+
+	image_convert_concat = np.concatenate((image_convert, xb[..., np.newaxis], xa[..., np.newaxis]), axis=2)
+
+	image_convert_reshape = np.reshape(image_convert_concat, (dim1 * dim2, 5))
+	image_convert_reshape_mean = np.mean(image_convert_reshape, axis=0)
+	image_convert_reshape_sd = np.std(image_convert_reshape, axis=0)
+	image_convert_reshape = (image_convert_reshape - image_convert_reshape_mean) / image_convert_reshape_sd
+
+	image_convert_reshape[:, 3:5] *= spatial_weight
+
+	kmeans = MiniBatchKMeans(n_clusters=2, init='k-means++', n_init=3).fit(image_convert_reshape)
+	mask = np.reshape(kmeans.labels_, (dim1, dim2)).astype(np.uint8)
+
+
+	if mask[dim1 // 2, dim2 // 2] == 0:
+		mask = 1 - mask
+
+	masked_image = image * mask[..., np.newaxis]
+
+	return mask, masked_image
 
 
 def return_masked_image(image,spatial_weight):

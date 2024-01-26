@@ -2,14 +2,16 @@ package com.example.biomatch.fragment
 
 import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
+import android.content.Intent
 import android.graphics.*
 import android.media.Image
 import android.os.Bundle
+import android.os.Environment
+import android.provider.MediaStore
 import android.util.Base64
 import android.util.DisplayMetrics
 import android.util.Log
 import android.util.Size
-import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.Surface
 import android.view.View
@@ -23,10 +25,11 @@ import androidx.camera.core.Camera
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
+import androidx.fragment.app.Fragment
 import androidx.lifecycle.LifecycleOwner
 import com.chaquo.python.Python
 import com.example.biomatch.R
-import com.example.biomatch.ml.ModelAtmTripletSiameseV1
 import com.example.biomatch.ml.ModelScatDwtharrSiameseV1
 import com.example.biomatch.yolo.customview.OverlayView
 import com.example.biomatch.yolo.env.ImageUtils
@@ -34,6 +37,7 @@ import com.example.biomatch.yolo.tflite.Classifier
 import com.example.biomatch.yolo.tflite.DetectorFactory
 import com.example.biomatch.yolo.tflite.YoloV5Classifier
 import com.example.biomatch.yolo.tracking.MultiBoxTracker
+import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.firebase.database.*
 import kotlinx.coroutines.*
@@ -45,8 +49,7 @@ import org.opencv.core.Mat
 import org.opencv.imgproc.Imgproc
 import org.tensorflow.lite.DataType
 import org.tensorflow.lite.support.tensorbuffer.TensorBuffer
-import java.io.ByteArrayOutputStream
-import java.io.IOException
+import java.io.*
 import java.math.BigDecimal
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -58,6 +61,10 @@ import kotlin.system.measureTimeMillis
 class RegisterFragment : Fragment() {
 
     private var TAG = "Register Fragment"
+    private var CAPTUREMODE = 1
+    private var AUTOBOOL = 1
+    var buttonpressed=0
+
 
     private var camera: Camera? = null
 
@@ -76,9 +83,12 @@ class RegisterFragment : Fragment() {
     private var frameToCropTransform: Matrix? = null
     private var lastAnalyzedTimestamp = 0L
     private var saved_finger= ArrayList<Deferred<FloatArray>>()
+    private val cameraRequestCode = 42
+    private lateinit var photoFile: File
 
     private lateinit var registerLayout: LinearLayout
     private lateinit var customCaptureLayout: FrameLayout
+    private lateinit var capturemode_switch: MaterialSwitch
     private lateinit var progressBar1: ProgressBar
     private lateinit var progressBar2: ProgressBar
     private lateinit var progressBar3: ProgressBar
@@ -95,14 +105,10 @@ class RegisterFragment : Fragment() {
     private var approve2=-1.0
     private var approve3=-1.0
     private var approve4=-1.0
-
-
-
     private val MAINTAIN_ASPECT = true
-
     private var imageSize = 200
     var counter =0
-
+    var count=0
     var timer = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -121,6 +127,7 @@ class RegisterFragment : Fragment() {
         registerLayout = view.findViewById(R.id.register_frame)
         customCaptureLayout = view.findViewById(R.id.register_captureframe)
         registered_name_btn = view.findViewById<AppCompatEditText>(R.id.registrationname_edittxt)
+        capturemode_switch = view.findViewById(R.id.capturemode_switch)
         progressBar1 = view.findViewById(R.id.progress_bar_sample1)
         progressBar2 = view.findViewById(R.id.progress_bar_sample2)
         progressBar3 = view.findViewById(R.id.progress_bar_sample3)
@@ -130,6 +137,18 @@ class RegisterFragment : Fragment() {
         )
         auto_phoneno = sharedPreferences?.getString("phoneno", "").toString()
         send_firebase = ArrayList<ArrayList<Deferred<FloatArray>>>()
+
+        capturemode_switch.setOnClickListener{
+            if(!capturemode_switch.isChecked){
+                view.findViewById<Button>(R.id.capture_toggle).visibility= View.VISIBLE
+                AUTOBOOL=0
+            }
+            else{
+                view.findViewById<Button>(R.id.capture_toggle).visibility= View.GONE
+                AUTOBOOL=1
+            }
+
+        }
 
 
         view.findViewById<AppCompatButton>(R.id.add_sample1_btn).setOnClickListener{
@@ -176,53 +195,162 @@ class RegisterFragment : Fragment() {
         return view
     }
 
-    fun runCustomView(view: View,sample: Int){
-        tracker = MultiBoxTracker(activity)
-        OpenCVLoader.initDebug()
+    fun runCustomView(view: View,sample: Int) {
+        if (CAPTUREMODE != 0)
+        {
+            tracker = MultiBoxTracker(activity)
+            OpenCVLoader.initDebug()
 
-        cameraProviderFuture = ProcessCameraProvider.getInstance(requireActivity())
+            cameraProviderFuture = ProcessCameraProvider.getInstance(requireActivity())
 
-        cameraProviderFuture.addListener({
-            // get() is used to get the instance of the future.
-            val cameraProvider = cameraProviderFuture.get()
-            bindPreview(cameraProvider = cameraProvider,view,sample)
-            // Here, we will bind the preview
-        }, ContextCompat.getMainExecutor(requireActivity()))
+            cameraProviderFuture.addListener({
+                // get() is used to get the instance of the future.
+                val cameraProvider = cameraProviderFuture.get()
+                bindPreview(cameraProvider = cameraProvider, view, sample)
+                // Here, we will bind the preview
+            }, ContextCompat.getMainExecutor(requireActivity()))
 
 
-        try {
-            detector = DetectorFactory.getDetector(requireActivity().assets, "finger_detect.tflite")
-        } catch (e: IOException) {
-            e.printStackTrace()
+            try {
+                detector = DetectorFactory.getDetector(requireActivity().assets, "finger_detect.tflite")
+            } catch (e: IOException) {
+                e.printStackTrace()
 
-            val toast = Toast.makeText(
-                activity, "Classifier could not be initialized", Toast.LENGTH_SHORT
-            )
-            toast.show()
+                val toast = Toast.makeText(
+                    activity, "Classifier could not be initialized", Toast.LENGTH_SHORT
+                )
+                toast.show()
+            }
+            cropSize = 416
+            detector?.useCPU()
+            detector!!.setNumThreads(1)
+            trackingOverlay?.addCallback { canvas ->
+                tracker?.draw(canvas)
+            }
+            val displayMetrics = DisplayMetrics()
+            activity?.windowManager?.getDefaultDisplay()?.getMetrics(displayMetrics)
+            previewWidth = 1920
+            previewHeight = 1080
+            var rotation = 90
+            sensorOrientation = rotation - getScreenOrientation()
+
+            cropBitmap = Bitmap.createBitmap(cropSize!!, cropSize!!, Bitmap.Config.ARGB_8888)
+            tracker?.setFrameConfiguration(previewWidth!!, previewHeight!!, sensorOrientation!!)
+            frameToCropTransform =
+                ImageUtils.getTransformationMatrix(
+                    previewWidth!!,
+                    previewHeight!!,
+                    cropSize!!,
+                    cropSize!!,
+                    sensorOrientation!!,
+                    MAINTAIN_ASPECT
+                )
         }
-        cropSize = 416
-        detector?.useCPU()
-        detector!!.setNumThreads(1)
-        trackingOverlay?.addCallback { canvas ->
-            tracker?.draw(canvas)
+        else{
+                var intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
+                photoFile = getPhotoFile(count.toString() + ".png")
+                count += 1
+                val fileProvider =
+                    activity?.let { FileProvider.getUriForFile(it, "com.example.biomatch.fileprovider", photoFile) }
+                intent.putExtra(MediaStore.EXTRA_OUTPUT, fileProvider)
+                startActivityForResult(intent, cameraRequestCode)
         }
-        val displayMetrics = DisplayMetrics()
-        activity?.windowManager?.getDefaultDisplay()?.getMetrics(displayMetrics)
-        previewWidth = 1920
-        previewHeight = 1080
+    }
+    private fun getPhotoFile(s: String): File {
+        val storageDirectory =  activity?.getExternalFilesDir(Environment.DIRECTORY_PICTURES)
+        return File.createTempFile(s,".jpg",storageDirectory)
+    }
 
-        val rotation = 90
-        sensorOrientation = rotation - getScreenOrientation()
-        cropBitmap = Bitmap.createBitmap(cropSize!!, cropSize!!, Bitmap.Config.ARGB_8888)
-        tracker?.setFrameConfiguration(previewWidth!!, previewHeight!!, sensorOrientation!!)
-        frameToCropTransform =
-            ImageUtils.getTransformationMatrix(
-                previewWidth!!,
-                previewHeight!!,
-                cropSize!!,
-                cropSize!!,
-                sensorOrientation!!,
-                MAINTAIN_ASPECT)
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if(requestCode==cameraRequestCode){
+            var bitmap = BitmapFactory.decodeFile(photoFile.absolutePath)
+            if (bitmap != null) {
+                cropSize = 416
+                trackingOverlay?.addCallback { canvas ->
+                    tracker?.draw(canvas)
+                }
+
+//                cropBitmap = Bitmap.createBitmap(cropSize!!, cropSize!!, Bitmap.Config.ARGB_8888)
+                cropBitmap = Bitmap.createScaledBitmap(bitmap,cropSize,cropSize,true)
+                // Initialize the storage bitmaps once when the resolution is known.
+                previewWidth= bitmap.width
+                previewHeight = bitmap.height
+
+                cropToFrameTransform = Matrix()
+                frameToCropTransform?.invert(cropToFrameTransform)
+
+//                var canvas = cropBitmap?.let { Canvas(it) }
+//                var rgbbitmap =  Bitmap.createScaledBitmap(bitmap, previewWidth!!, previewHeight!!, true)
+//
+//                canvas?.drawBitmap(rgbbitmap, frameToCropTransform!!, null)
+                try {
+                    detector = DetectorFactory.getDetector(requireActivity().assets, "finger_detect.tflite")
+                } catch (e: IOException) {
+                    e.printStackTrace()
+
+                    val toast = Toast.makeText(
+                        activity, "Classifier could not be initialized", Toast.LENGTH_SHORT
+                    )
+                    toast.show()
+                }
+                detector?.useCPU()
+                detector!!.setNumThreads(1)
+
+
+
+//                val results: List<Classifier.Recognition> =
+//                    detector!!.recognizeImage(cropBitmap)
+//                Log.e("CHECK", "run: " + results.size)
+//                val mappedRecognitions: MutableList<Classifier.Recognition> =
+//                    LinkedList<Classifier.Recognition>()
+//                var cropCopyBitmap = Bitmap.createBitmap(bitmap)
+////                canvas = Canvas(cropCopyBitmap)
+//                val paint = Paint()
+//                paint.color = Color.RED
+//                paint.style = Paint.Style.STROKE
+//                paint.strokeWidth = 2.0f
+//                Log.d("RESULTS", results.size.toString())
+//                customCaptureLayout.visibility = View.GONE
+//                registerLayout.visibility = View.VISIBLE
+//
+//                for (result in results) {
+//                    val location = result.location
+//                    if (location != null && result.confidence >= 0.5) {
+//
+////                        canvas.drawRect(location, paint)
+//                        cropToFrameTransform?.mapRect(location);
+//                        result.location = location
+//                        mappedRecognitions.add(result)
+//                        var result = autoCapture(mappedRecognitions, bitmap)
+//
+//
+//                        if(result==1) {
+////                                    detector!!.close()
+//                            customCaptureLayout.visibility = View.GONE
+//                            registerLayout.visibility = View.VISIBLE
+//                            val toast = Toast.makeText(
+//                                activity, "PERFECT IMAGE", Toast.LENGTH_SHORT
+//                            )
+//                            toast.show()
+//
+//                        }
+//                        else{
+//                            val toast = Toast.makeText(
+//                                activity, "WRONG IMAGE", Toast.LENGTH_SHORT
+//                            )
+//                            toast.show()
+//
+//                        }
+//
+//                    }
+//                }
+//                trackingOverlay!!.postInvalidate()
+
+            }
+
+
+        }
     }
 
     protected fun getScreenOrientation(): Int {
@@ -251,7 +379,10 @@ class RegisterFragment : Fragment() {
             .also {
                 it.setAnalyzer(ContextCompat.getMainExecutor(requireActivity()))
                 {
-                    val rotationDegress = it.imageInfo.rotationDegrees
+                    var rotationDegress = it.imageInfo.rotationDegrees
+                    if(counter==1){
+                        rotationDegress+=180
+                    }
                     println(rotationDegress)
                     val image = it.image
 
@@ -269,10 +400,13 @@ class RegisterFragment : Fragment() {
                         var rgbbitmap =  Bitmap.createScaledBitmap(bitmap, previewWidth!!, previewHeight!!, true)
 
                         canvas?.drawBitmap(rgbbitmap, frameToCropTransform!!, null)
+//                        if(cropBitmap!=null){
+//                            tempimg = cropBitmap
+//                        }
 
+                        val results: List<Classifier.Recognition> = detector!!.recognizeImage(cropBitmap)
+                        Log.d("RESULTS", results.size.toString())
 
-                        val results: List<Classifier.Recognition> =
-                            detector!!.recognizeImage(cropBitmap)
                         Log.e("CHECK", "run: " + results.size)
                         val mappedRecognitions: MutableList<Classifier.Recognition> =
                             LinkedList<Classifier.Recognition>()
@@ -291,27 +425,29 @@ class RegisterFragment : Fragment() {
                                 cropToFrameTransform?.mapRect(location);
                                 result.location = location
                                 mappedRecognitions.add(result)
-                                val result = autoCapture(mappedRecognitions,bitmap)
+                                var result = autoCapture(mappedRecognitions,bitmap)
                                 if(result==1) {
+//                                    detector!!.close()
+
                                     cameraProvider.unbindAll()
 //                                    detector!!.close()
                                     customCaptureLayout.visibility = View.GONE
                                     registerLayout.visibility = View.VISIBLE
                                     if (sample == 1){
                                     view.findViewById<AppCompatButton>(R.id.add_sample1_btn).text =
-                                        "PENDING"
+                                        "DONE"
                                     view.findViewById<AppCompatButton>(R.id.add_sample1_btn).isEnabled =
                                         false
                                     }
                                     if (sample == 2){
                                     view.findViewById<AppCompatButton>(R.id.add_sample2_btn).text =
-                                        "PENDING"
+                                        "DONE"
                                     view.findViewById<AppCompatButton>(R.id.add_sample2_btn).isEnabled =
                                         false
                                 }
                                     if(sample==3) {
                                         view.findViewById<AppCompatButton>(R.id.add_sample3_btn).text =
-                                            "PENDING"
+                                            "DONE"
                                         view.findViewById<AppCompatButton>(R.id.add_sample3_btn).isEnabled =
                                             false
                                     }
@@ -369,14 +505,15 @@ class RegisterFragment : Fragment() {
     }
 
 
-    private fun autoCapture(
-        mappedRecognitions: MutableList<Classifier.Recognition>,
-        cropCopyBitmap: Bitmap,
-
-        ): Int {
+    private fun autoCapture(mappedRecognitions: MutableList<Classifier.Recognition>, cropCopyBitmap: Bitmap, ): Int {
         val top1 = ArrayList<Bitmap>()
         var fingtest = 10
         var greymap: HashMap<Any, Bitmap> = hashMapOf(7 to cropCopyBitmap, 11 to cropCopyBitmap, 15 to cropCopyBitmap, 19 to cropCopyBitmap)
+
+        val matrix = Matrix()
+
+        matrix.postRotate(180F)
+
 
         if(mappedRecognitions.size ==4) {
             for( i in mappedRecognitions){
@@ -408,13 +545,29 @@ class RegisterFragment : Fragment() {
                         abs(i.location.top - i.location.bottom).toInt()
                     )
 
+
                     top1.add(tmp_btmp)
                     val focusLevel = calculateFocusLevel(tmp_btmp)
                     avgFocus+=focusLevel
                     if(i.detectedClass==0 && focusLevel>=95){
                         if(focusLevel>approve1) {
                             greymap.set(7, tmp_btmp)
-                            greymapf.set(7, tmp_btmp)
+                            if(counter==1){
+                                val rotatedBitmap = Bitmap.createBitmap(
+                                    tmp_btmp,
+                                    0,
+                                    0,
+                                    tmp_btmp.width,
+                                    tmp_btmp.height,
+                                    matrix,
+                                    true
+                                )
+                                greymapf.set(7, rotatedBitmap)
+
+                            }
+                            else {
+                                greymapf.set(7, tmp_btmp)
+                            }
                             approve1 = focusLevel
 
                         }
@@ -423,7 +576,22 @@ class RegisterFragment : Fragment() {
                     else if(i.detectedClass==1 && focusLevel>=85){
                         if(focusLevel>approve2) {
                             greymap.set(11, tmp_btmp)
-                            greymapf.set(11, tmp_btmp)
+                            if(counter==1){
+                                val rotatedBitmap = Bitmap.createBitmap(
+                                    tmp_btmp,
+                                    0,
+                                    0,
+                                    tmp_btmp.width,
+                                    tmp_btmp.height,
+                                    matrix,
+                                    true
+                                )
+                                greymapf.set(11, rotatedBitmap)
+
+                            }
+                            else {
+                                greymapf.set(11, tmp_btmp)
+                            }
                             approve2 = focusLevel
                         }
 
@@ -431,7 +599,22 @@ class RegisterFragment : Fragment() {
                     else if(i.detectedClass==2 && focusLevel>=40){
                         if(focusLevel>approve3) {
                             greymap.set(15, tmp_btmp)
-                            greymapf.set(15, tmp_btmp)
+                            if(counter==1){
+                                val rotatedBitmap = Bitmap.createBitmap(
+                                    tmp_btmp,
+                                    0,
+                                    0,
+                                    tmp_btmp.width,
+                                    tmp_btmp.height,
+                                    matrix,
+                                    true
+                                )
+                                greymapf.set(15, rotatedBitmap)
+
+                            }
+                            else {
+                                greymapf.set(15, tmp_btmp)
+                            }
                             approve3 = focusLevel
                         }
 
@@ -439,7 +622,22 @@ class RegisterFragment : Fragment() {
                     else if(i.detectedClass==3 && focusLevel>=75){
                         if(focusLevel>approve4) {
                             greymap.set(19, tmp_btmp)
-                            greymapf.set(19, tmp_btmp)
+                            if(counter==1){
+                                val rotatedBitmap = Bitmap.createBitmap(
+                                    tmp_btmp,
+                                    0,
+                                    0,
+                                    tmp_btmp.width,
+                                    tmp_btmp.height,
+                                    matrix,
+                                    true
+                                )
+                                greymapf.set(19, rotatedBitmap)
+
+                            }
+                            else {
+                                greymapf.set(19, tmp_btmp)
+                            }
                             approve4 = focusLevel
                         }
                     }
@@ -464,120 +662,203 @@ class RegisterFragment : Fragment() {
             }
         }
 
-        if(timer>=20 && approve1>=95 && approve2>=85 && approve3>=40 && approve4>=75){
-            timer=0
-            detector?.close()
-            camera!!.cameraControl.enableTorch(false)
-            val displayoutputlayout = view?.findViewById<LinearLayout>(R.id.captured_finger_reg)
-            displayoutputlayout?.visibility = View.VISIBLE
-            view?.findViewById<ImageView>(R.id.cap_finger1)?.setImageBitmap(greymapf.get(7))
-            view?.findViewById<ImageView>(R.id.cap_finger2)?.setImageBitmap(greymapf.get(11))
-            view?.findViewById<ImageView>(R.id.cap_finger3)?.setImageBitmap(greymapf.get(15))
-            view?.findViewById<ImageView>(R.id.cap_finger4)?.setImageBitmap(greymapf.get(19))
-            processing(greymapf)
-            return 1
+        view?.findViewById<Button>(R.id.capture_toggle)?.setOnClickListener {
+            var classes= 10
+            if(mappedRecognitions.size==4) {
+                for (i in mappedRecognitions) {
+                    var tmp_btmp= Bitmap.createBitmap(
+                        cropCopyBitmap,
+                        abs(i.location.left).toInt(),
+                        abs(i.location.top).toInt(),
+                        abs(i.location.left - i.location.right).toInt(),
+                        abs(i.location.top - i.location.bottom).toInt()
+                    )
+                    if (i.detectedClass == 0) {
+                        classes-=1
+                        if(counter==1){
+                            val rotatedBitmap = Bitmap.createBitmap(
+                                tmp_btmp,
+                                0,
+                                0,
+                                tmp_btmp.width,
+                                tmp_btmp.height,
+                                matrix,
+                                true
+                            )
+                            greymapf.set(7, rotatedBitmap)
+
+                        }
+                        else {
+                            greymapf.set(7, tmp_btmp)
+                        }
+                    }
+                    if (i.detectedClass == 1) {
+                        classes-=2
+                        if(counter==1){
+                            val rotatedBitmap = Bitmap.createBitmap(
+                                tmp_btmp,
+                                0,
+                                0,
+                                tmp_btmp.width,
+                                tmp_btmp.height,
+                                matrix,
+                                true
+                            )
+                            greymapf.set(11, rotatedBitmap)
+
+                        }
+                        else {
+                            greymapf.set(11, tmp_btmp)
+                        }
+                    }
+                    if (i.detectedClass == 2) {
+                        classes-=3
+                        if(counter==1){
+                            val rotatedBitmap = Bitmap.createBitmap(
+                                tmp_btmp,
+                                0,
+                                0,
+                                tmp_btmp.width,
+                                tmp_btmp.height,
+                                matrix,
+                                true
+                            )
+                            greymapf.set(15, rotatedBitmap)
+
+                        }
+                        else {
+                            greymapf.set(15, tmp_btmp)
+                        }
+                    }
+                    if (i.detectedClass == 3) {
+                        classes-=4
+                        if(counter==1){
+                            val rotatedBitmap = Bitmap.createBitmap(
+                                tmp_btmp,
+                                0,
+                                0,
+                                tmp_btmp.width,
+                                tmp_btmp.height,
+                                matrix,
+                                true
+                            )
+                            greymapf.set(19, rotatedBitmap)
+
+                        }
+                        else {
+                            greymapf.set(19, tmp_btmp)
+                        }
+                    }
+                }
+            }
+            if(classes==0) {
+                timer = 0
+//                detector?.close()
+                camera!!.cameraControl.enableTorch(false)
+                val displayoutputlayout = view?.findViewById<LinearLayout>(R.id.captured_finger_reg)
+                displayoutputlayout?.visibility = View.VISIBLE
+                var outputUri = makeImageDirectory(registered_name_btn.text.toString())
+                var fOut1: OutputStream? = null
+                val file1 = File(
+                    outputUri,
+                    registered_name_btn.text.toString() + "_" + counter.toString() + "_7.png"
+                )
+                fOut1 = FileOutputStream(file1)
+                greymapf[7]?.compress(Bitmap.CompressFormat.PNG, 100, fOut1)
+                val file2 = File(
+                    outputUri,
+                    registered_name_btn.text.toString() + "_" + counter.toString() + "_11.png"
+                )
+                fOut1 = FileOutputStream(file2)
+                greymapf[11]?.compress(Bitmap.CompressFormat.PNG, 100, fOut1)
+                val file3 = File(
+                    outputUri,
+                    registered_name_btn.text.toString() + "_" + counter.toString() + "_15.png"
+                )
+                fOut1 = FileOutputStream(file3)
+                greymapf[15]?.compress(Bitmap.CompressFormat.PNG, 100, fOut1)
+                val file4 = File(
+                    outputUri,
+                    registered_name_btn.text.toString() + "_" + counter.toString() + "_19.png"
+                )
+                fOut1 = FileOutputStream(file4)
+                greymapf[19]?.compress(Bitmap.CompressFormat.PNG, 100, fOut1)
+
+                view?.findViewById<ImageView>(R.id.cap_finger1)?.setImageBitmap(greymapf.get(7))
+                view?.findViewById<ImageView>(R.id.cap_finger2)
+                    ?.setImageBitmap(greymapf.get(11))
+                view?.findViewById<ImageView>(R.id.cap_finger3)
+                    ?.setImageBitmap(greymapf.get(15))
+                view?.findViewById<ImageView>(R.id.cap_finger4)
+                    ?.setImageBitmap(greymapf.get(19))
+                activity?.runOnUiThread {
+                    increaseProgressBar(1000, 2000)
+
+                }
+                processing(greymapf)
+                buttonpressed = 1
+            }
+
         }
 
+        if(AUTOBOOL!=0 && timer >= 20 && approve1 >= 95 && approve2 >= 85 && approve3 >= 40 && approve4 >= 75) {
+
+                Log.d("CAPTUREMODE","AUTOCAPTURE")
+                timer = 0
+                detector?.close()
+                camera!!.cameraControl.enableTorch(false)
+                val displayoutputlayout = view?.findViewById<LinearLayout>(R.id.captured_finger_reg)
+                displayoutputlayout?.visibility = View.VISIBLE
+                var outputUri = makeImageDirectory(registered_name_btn.text.toString())
+                var fOut1: OutputStream? = null
+                val file1 = File(
+                    outputUri,
+                    registered_name_btn.text.toString() + "_" + counter.toString() + "_7.png"
+                )
+                fOut1 = FileOutputStream(file1)
+                greymapf[7]?.compress(Bitmap.CompressFormat.PNG, 100, fOut1)
+                val file2 = File(
+                    outputUri,
+                    registered_name_btn.text.toString() + "_" + counter.toString() + "_11.png"
+                )
+                fOut1 = FileOutputStream(file2)
+                greymapf[11]?.compress(Bitmap.CompressFormat.PNG, 100, fOut1)
+                val file3 = File(
+                    outputUri,
+                    registered_name_btn.text.toString() + "_" + counter.toString() + "_15.png"
+                )
+                fOut1 = FileOutputStream(file3)
+                greymapf[15]?.compress(Bitmap.CompressFormat.PNG, 100, fOut1)
+                val file4 = File(
+                    outputUri,
+                    registered_name_btn.text.toString() + "_" + counter.toString() + "_19.png"
+                )
+                fOut1 = FileOutputStream(file4)
+                greymapf[19]?.compress(Bitmap.CompressFormat.PNG, 100, fOut1)
+
+                view?.findViewById<ImageView>(R.id.cap_finger1)?.setImageBitmap(greymapf.get(7))
+                view?.findViewById<ImageView>(R.id.cap_finger2)?.setImageBitmap(greymapf.get(11))
+                view?.findViewById<ImageView>(R.id.cap_finger3)?.setImageBitmap(greymapf.get(15))
+                view?.findViewById<ImageView>(R.id.cap_finger4)?.setImageBitmap(greymapf.get(19))
+                activity?.runOnUiThread {
+                    increaseProgressBar(1000, 2000)
+                }
+
+//            processing(greymapf)
+                return 1
+        }
+        else if(buttonpressed==1){
+            Log.d("CAPTUREMODE","manualCAPTURE")
+
+            detector?.close()
+            buttonpressed=0
+            return 1
+
+        }
         return 0
     }
-//    private suspend fun processImage(key: Int, greymap: HashMap<Any, Bitmap?>): FloatArray = withContext(
-//        Dispatchers.Default){
-//        Log.d(TAG,key.toString())
-//        var dist = (-1.0).toFloat()
-//        var anc_enc = FloatArray(128)
-//        try {
-//            Log.d(TAG,Thread.currentThread().toString()+" is run")
-//
-//
-//            var py = Python.getInstance()
-//            var pyObj = py.getModule("myscript")
-//            val prediction = ArrayList<Float>()
-//
-//            var imagestr = getStringImage(greymap[key])
-//            var obj = pyObj.callAttr("main", imagestr,3)
-//            var imgstr = obj.toString()
-//            var data = Base64.decode(imgstr, Base64.DEFAULT)
-//            var btmp = BitmapFactory.decodeByteArray(data, 0, data.size)
-//            activity?.runOnUiThread {
-//                if (key == 7) {
-//                    view?.findViewById<ImageView>(R.id.cap_finger1)?.setImageBitmap(btmp)
-//                } else if (key == 11) {
-//                    view?.findViewById<ImageView>(R.id.cap_finger2)?.setImageBitmap(btmp)
-//                } else if (key == 15) {
-//                    view?.findViewById<ImageView>(R.id.cap_finger3)?.setImageBitmap(btmp)
-//                } else if (key == 19) {
-//                    view?.findViewById<ImageView>(R.id.cap_finger4)?.setImageBitmap(btmp)
-//                }
-//            }
-//
-//
-//
-//            Log.d("IMAGE", greymap[key].toString())
-//            if (btmp != null) {
-////                    var image1 = Bitmap.createScaledBitmap(btmp, imageSize, imageSize, false)
-////                    var image2 = Bitmap.createScaledBitmap(btmp1, imageSize, imageSize, false)
-//                Log.d(TAG, "scaled done")
-//
-//                Log.d("IMAGE", "NEXT2")
-//
-//
-//                var pyObj = py.getModule("myscript")
-//
-//                var imagestr = getStringImage(btmp)
-//                var obj = pyObj.callAttr("getpixel", imagestr)
-//                var imgstr = obj.toString()
-//                val intValues = imgstr.split(" ")
-//
-//
-//                val inputFeature0 =
-//                    TensorBuffer.createFixedSize(intArrayOf(1, 200, 200), DataType.FLOAT32)
-//                var byteBuffer1: ByteBuffer =
-//                    ByteBuffer.allocateDirect(4 * imageSize * imageSize)
-//                byteBuffer1.order(ByteOrder.nativeOrder())
-//                var pixel = 0
-//                for (i in 0 until imageSize) {
-//                    for (j in 0 until imageSize) {
-//                        //                                    for (k in 0 until 3){
-//                        var vals = intValues[pixel++].toInt()// RGB
-//                        byteBuffer1.putFloat(
-//                            (vals * (1F / 255f).toDouble().toBigDecimal()
-//                                .setScale(6, BigDecimal.ROUND_HALF_UP).toFloat())
-//                        )
-//                    }
-//                }
-//
-//
-////                                    val model = SiamesemodelEnh.newInstance(this@PAGE_Matching)  //Recent and best model of siamese enh with scattering2d with input image(96,96)
-//                val model = ModelScatDwtharrSiameseV1.newInstance(requireActivity()) //input_image(200,200)
-//                // Creates inputs for reference.
-//                // Creates inputs for reference.
-//                Log.d("", inputFeature0.toString())
-//                inputFeature0.loadBuffer(byteBuffer1)
-//                // Runs model inference and gets result.
-//                val outputs = model.process(inputFeature0)
-//                val outputFeature0 = outputs.outputFeature0AsTensorBuffer
-//
-//
-//                var confidence = outputFeature0.floatArray
-//
-//                anc_enc = confidence
-//
-//                model.close()
-//
-//
-//            }
-//            Log.d("IMAGE", "PYTHON SCRIPT Processed")
-//
-//        } catch (e: IOException) {
-//            e.printStackTrace()
-//        }
-//
-//        anc_enc
-//
-//    }
 
-    private suspend fun processImage(key: Int, greymap: HashMap<Any, Bitmap?>): FloatArray = withContext(
-        Dispatchers.Default){
+    private suspend fun processImage(key: Int, greymap: HashMap<Any, Bitmap?>): FloatArray = withContext(Dispatchers.Default){
         Log.d(TAG,key.toString())
         var dist = (-1.0).toFloat()
         var anc_enc = FloatArray(128)
@@ -590,7 +871,7 @@ class RegisterFragment : Fragment() {
             val prediction = ArrayList<Float>()
 
             var imagestr = getStringImage(greymap[key])
-            var obj = pyObj.callAttr("main", imagestr,3)
+            var obj = pyObj.callAttr("main", imagestr,10)
             var imgstr = obj.toString()
             var data = Base64.decode(imgstr, Base64.DEFAULT)
             var btmp = BitmapFactory.decodeByteArray(data, 0, data.size)
@@ -647,13 +928,9 @@ class RegisterFragment : Fragment() {
                 }
 
 
-//                                    val model = SiamesemodelEnh.newInstance(this@PAGE_Matching)  //Recent and best model of siamese enh with scattering2d with input image(96,96)
                 val model = ModelScatDwtharrSiameseV1.newInstance(requireActivity()) //input_image(200,200)
-//                val model = ModelAtmTripletSiameseV1.newInstance(requireActivity()) //input_image(200,200)
 
-                // Creates inputs for reference.
-                // Creates inputs for reference.
-                Log.d("", inputFeature0.toString())
+
                 inputFeature0.loadBuffer(byteBuffer1)
                 // Runs model inference and gets result.
                 val outputs = model.process(inputFeature0)
@@ -812,9 +1089,38 @@ class RegisterFragment : Fragment() {
 
         return focusMeasure.`val`[0].coerceIn(0.0,100.0)
     }
+    private fun makeImageDirectory(name: String): File? {
+        val mediaDir = context?.externalMediaDirs?.firstOrNull()?.let { mFile ->
+            Log.d("IMAGE", mFile.toString())
+            File((mFile.toString() + "/"+resources.getString(R.string.app_name)), name).apply {
+                mkdirs()
+            }
+        }
+        return if (mediaDir != null && mediaDir.exists())
+            mediaDir else context?.filesDir
+    }
+    private fun getOutputMediaFile(filename: String): File? {
+        // To be safe, you should check that the SDCard is mounted
+        // using Environment.getExternalStorageState() before doing this.
+        val mediaStorageDir = File(
+            Environment.getExternalStorageDirectory(),"/Android/data/"
+        )
 
+        // This location works best if you want the created images to be shared
+        // between applications and persist after your app has been uninstalled.
 
-
+        // Create the storage directory if it does not exist
+        if (!mediaStorageDir.exists()) {
+            if (!mediaStorageDir.mkdirs()) {
+                return null
+            }
+        }
+        // Create a media file name
+        val mediaFile: File
+        val mImageName = filename
+        mediaFile = File(mediaStorageDir.path + File.separator.toString() + mImageName)
+        return mediaFile
+    }
 
 
 }
